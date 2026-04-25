@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BraeNova StockMaster</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0c0c0c; color: #ffffff; font-family: 'Inter', system-ui, -apple-system; padding-top: 75px; padding-bottom: 90px; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; height: 65px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 1100; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo-img { height: 45px; width: auto; border-radius: 8px; border: 1px solid #333; }
+        .brand-text { color: #fff; font-weight: 900; letter-spacing: -0.5px; font-size: 1.1rem; line-height: 1.1; }
+        .brand-text span { color: #f91a8e; display: block; font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000; box-shadow: 0 -5px 25px rgba(0,0,0,0.5); height: 75px; align-items: center; }
+        .nav-btn { color: #555; text-decoration: none; text-align: center; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; flex-grow: 1; display: flex; flex-direction: column; align-items: center; }
+        .nav-btn.active { color: #f91a8e; }
+        .nav-icon { font-size: 1.7rem; display: block; line-height: 1; margin-bottom: 4px; }
+        .stock-card { background: #151515; border: 1px solid #222; border-radius: 20px; margin-bottom: 15px; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #222; transition: background 0.2s; }
+        .item-row:hover { background: #1a1a1a; }
+        .btn-quick { background: rgba(249, 26, 142, 0.1); color: #f91a8e; border: 1px solid rgba(249, 26, 142, 0.2); font-size: 0.7rem; font-weight: 800; padding: 5px 12px; border-radius: 8px; }
+        .btn-edit { background: rgba(0, 123, 255, 0.1); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.2); font-size: 0.7rem; font-weight: 800; padding: 5px 12px; border-radius: 8px; margin-left: 5px; }
+        .ownership-tag { text-align: center; padding: 20px 10px; opacity: 0.4; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #fff; }
+
+        /* Success & Error Pop Style */
+        #successPop, #errorPop { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 2000; 
+            display: none; align-items: center; justify-content: center; 
+            flex-direction: column; text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .pop-card { 
+            background: #111; border: 2px solid #00ff00; border-radius: 30px; 
+            padding: 40px; box-shadow: 0 0 50px rgba(0, 255, 0, 0.2);
+            transform: scale(0.8); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #errorPop .pop-card { border-color: #ff5252; box-shadow: 0 0 50px rgba(255, 82, 82, 0.2); }
+        #successPop.show, #errorPop.show { display: flex; }
+        #successPop.show .pop-card, #errorPop.show .pop-card { transform: scale(1); }
+        .check-icon { font-size: 5rem; color: #00ff00; margin-bottom: 20px; display: block; }
+        .error-icon { font-size: 5rem; color: #ff5252; margin-bottom: 20px; display: block; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-img">
+            <div class="brand-text">BRAENOVA<span>STOCKMASTER</span></div>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button onclick="window.location.reload()" class="btn btn-sm btn-outline-secondary rounded-pill border-opacity-25" style="width: 40px; height: 40px; padding: 0;">🔄</button>
+            <a href="/logout" class="btn btn-sm btn-outline-danger px-3 rounded-pill fw-bold">LOGOUT</a>
+        </div>
+    </header>
+
+    <div class="container py-3">
+        <h4 class="fw-900 mb-2" style="color: #f91a8e;">Management</h4>
+        
+        <!-- Financial Metrics -->
+        {% if session.role == 'owner' %}
+        <div class="row g-2 mb-4">
+            <div class="col-6">
+                <div class="stock-card p-3 mb-0 text-center border-info border-opacity-10">
+                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Buying Power</small>
+                    <div class="fw-bold"><span id="totalBuyingPower">{{ financials.total_buying_power | kina }}</span></div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stock-card p-3 mb-0 text-center border-success border-opacity-10">
+                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Shelf Value</small>
+                    <div class="fw-bold text-success"><span id="totalShelfValue">{{ financials.potential_revenue | kina }}</span></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Workforce Management -->
+        {% if session.role == 'owner' %}
+        <div class="stock-card p-4 mb-4 border-info border-opacity-25 shadow">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="text-info mb-0 fw-bold">Store Personnel</h5>
+                <button class="btn btn-sm btn-info fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addCashierModal">+ NEW</button>
+            </div>
+            <div class="list-group gap-2">
+                {% for c in cashiers %}
+                <div class="list-group-item bg-black bg-opacity-50 border-dark rounded-3 p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">{{ c.username }}</span>
+                        <span class="badge bg-info bg-opacity-10 text-info" style="font-size: 0.6rem;">CASHIER</span>
+                    </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary flex-grow-1 border-secondary border-opacity-25" style="font-size: 0.7rem; font-weight: 700;" onclick="openResetModal({{ c.id }}, '{{ c.username }}')">RESET PASSWORD</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger flex-grow-1 border-danger border-opacity-25" style="font-size: 0.7rem; font-weight: 700;" onclick="confirmUserDelete('/users/delete', {{ c.id }})">DELETE</button>
+                        </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Stock Control -->
+        <div class="stock-card overflow-hidden mb-4">
+            <div class="p-3 bg-dark bg-opacity-25 border-bottom border-secondary">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0 fw-bold fs-6">Stock Control</h5>
+                    <span class="badge bg-secondary rounded-pill text-uppercase" style="font-size: 0.6rem;">{{ inventory|length }} Items</span>
+                </div>
+                <input type="text" id="stockSearch" class="form-control form-control-sm bg-black border-secondary text-white rounded-pill px-3" placeholder="Search stock..." onkeyup="filterStock()">
+            </div>
+            <div id="stockListContainer" class="inventory-list" style="max-height: 450px; overflow-y: auto;">
+                {% for item in inventory %}
+                <div class="item-row" data-id="{{ item.id }}" data-name="{{ item.item_name | lower }}" data-category="{{ item.category | lower }}">
+                    <div>
+                        <div class="fw-bold small d-flex align-items-center gap-2 badge-container">
+                            {{ item.item_name }}
+                            {% if item.quantity <= 0 %}
+                            <span class="badge bg-danger rounded-pill" style="font-size: 0.5rem; letter-spacing: 0.5px;">SOLD OUT</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted"><span class="stock-count">{{ item.quantity }} in stock</span> • <span class="text-info">{{ item.category }}</span></small>
+                    </div>
+                    <div>
+                        <button class="btn btn-quick" onclick="openQuickEdit({{ item.id }}, '{{ item.item_name }}', {{ item.unit_price }}, {{ item.cost_price }})">RESTOCK</button>
+                        {% if session.role == 'owner' %}
+                        <button class="btn btn-edit" onclick='openFullEdit({{ item | tojson }})'>EDIT</button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        {% if session.role == 'owner' %}
+        <!-- Category Management -->
+        <div class="stock-card p-3 mb-4 border-warning border-opacity-25">
+            <h6 class="text-warning mb-3 fw-bold">Categories</h6>
+            <form action="/category/add" method="POST" class="d-flex gap-2">
+                <input type="text" name="category_name" class="form-control form-control-sm bg-black border-secondary text-white" placeholder="e.g. Frozen Foods" required>
+                <button type="submit" class="btn btn-sm btn-warning fw-bold px-4">ADD</button>
+            </form>
+        </div>
+
+        <!-- Register Item -->
+        <div class="stock-card p-4 mb-4 border-primary border-opacity-25">
+            <h5 class="text-primary mb-3 fw-bold">Register Item</h5>
+            <form action="/inventory/add" method="POST" enctype="multipart/form-data" class="row g-3">
+                <div class="col-12"><input type="text" name="item_name" class="form-control bg-dark border-secondary text-white" placeholder="Product Name" required></div>
+                <div class="col-12"><select name="category" class="form-select bg-dark border-secondary text-white" required>{% for cat in categories %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}</select></div>
+                <div class="col-6"><input type="number" name="quantity" class="form-control bg-dark border-secondary text-white" placeholder="Quantity" required></div>
+                <div class="col-6"><input type="number" name="threshold" class="form-control bg-dark border-secondary text-white" placeholder="Low Stock Alert Level" required></div>
+                <div class="col-6"><input type="number" step="0.01" name="cost" class="form-control bg-dark border-secondary text-white" placeholder="Cost" required></div>
+                <div class="col-6"><input type="number" step="0.01" name="price" class="form-control bg-dark border-secondary text-white" placeholder="Sale Price" required></div>
+                <div class="col-12"><label class="small text-muted mb-1">Product Photo</label><input type="file" name="image" class="form-control bg-dark border-secondary text-white"></div>
+                <div class="col-12"><label class="small text-muted mb-1">Expiry Date (Optional)</label><input type="date" name="expiry_date" class="form-control bg-dark border-secondary text-white"></div>
+                <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-4 mt-3" style="background: #f91a8e; border: none;">ADD TO SYSTEM</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="ownership-tag pb-5">Created and Owned by<br><span style="color: #f91a8e;">BraeNova IT Solutions</span></div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="quickEditModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-primary rounded-4">
+                <div class="modal-body p-4">
+                    <h5 class="fw-bold mb-1" id="editItemName">Item Name</h5>
+                    <p class="small text-muted mb-4">Update Stock & Financials</p>
+                    <form action="/inventory/quick-update" method="POST">
+                        <input type="hidden" name="item_id" id="editItemId">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="small text-muted">Stock Quantity (Current + Add)</label>
+                                <input type="number" name="qty_add" class="form-control bg-black text-white border-secondary" value="0" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="small text-muted">Cost Price (Buying)</label>
+                                <input type="number" step="0.01" name="cost_price" id="editCostPrice" class="form-control bg-black text-white border-secondary" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="small text-muted">Sale Price (Selling)</label>
+                                <input type="number" step="0.01" name="new_price" id="editItemPrice" class="form-control bg-black text-white border-secondary" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-3 mt-4 fw-bold rounded-3" style="background: #f91a8e; border: none;">SAVE CHANGES</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-danger rounded-4">
+                <div class="modal-body p-4 text-center">
+                    <h5 class="fw-bold mb-3 text-danger">Are you sure?</h5>
+                    <p class="small text-muted mb-4">This action cannot be undone. Product or User will be removed forever.</p>
+                    <form id="deleteForm" method="POST" action="">
+                        <input type="hidden" name="user_id" id="deleteUserIdInput">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger py-3 fw-bold rounded-3">YES, DELETE FOREVER</button>
+                            <button type="button" class="btn btn-black text-white" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="fullEditModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark border-info rounded-4"><div class="modal-body p-4"><h5 class="fw-bold mb-3 text-info">Edit Item Details</h5><form action="/inventory/update" method="POST" enctype="multipart/form-data" class="row g-3"><input type="hidden" name="id" id="fullEditId"><input type="hidden" id="finalDeleteBtnLink"><div class="col-12"><label class="small text-muted">Name</label><input type="text" name="item_name" id="fullEditName" class="form-control bg-black text-white border-secondary" required></div><div class="col-12"><label class="small text-muted">Category</label><select name="category" id="fullEditCategory" class="form-select bg-black text-white border-secondary">{% for cat in categories %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}</select></div><div class="col-6"><label class="small text-muted">Stock Level</label><input type="number" name="quantity" id="fullEditQty" class="form-control bg-black text-white border-secondary" required></div><div class="col-6"><label class="small text-muted">Min Threshold</label><input type="number" name="threshold" id="fullEditThreshold" class="form-control bg-black text-white border-secondary" required></div><div class="col-6"><label class="small text-muted">Cost Price</label><input type="number" step="0.01" name="cost" id="fullEditCost" class="form-control bg-black text-white border-secondary" required></div><div class="col-6"><label class="small text-muted">Sale Price</label><input type="number" step="0.01" name="price" id="fullEditPrice" class="form-control bg-black text-white border-secondary" required></div><div class="col-12"><label class="small text-muted">New Photo (Optional)</label><input type="file" name="image" class="form-control bg-black text-white border-secondary"></div><div class="col-12"><label class="small text-muted">Expiry</label><input type="date" name="expiry_date" id="fullEditExpiry" class="form-control bg-black text-white border-secondary"></div><button type="submit" class="btn btn-info w-100 py-3 mt-4 fw-bold rounded-3">UPDATE PRODUCT</button><button type="button" class="btn btn-link text-danger mt-2 small text-decoration-none" onclick="confirmDelete()">Delete Item</button></form></div></div></div></div>
+
+    <div class="modal fade" id="addCashierModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark border-info rounded-4"><div class="modal-body p-4"><h5 class="fw-bold mb-3">Add Cashier</h5><form action="/users/add" method="POST"><input type="text" name="username" class="form-control bg-black text-white border-secondary mb-3" placeholder="Username" required><input type="password" name="password" class="form-control bg-black text-white border-secondary mb-4" placeholder="Password" required><div class="d-grid"><button type="submit" class="btn btn-info py-3 fw-bold rounded-3">CREATE</button></div></form></div></div></div></div>
+    <div class="modal fade" id="resetPwModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark border-secondary rounded-4"><div class="modal-body p-4"><h5 class="fw-bold mb-1">Reset PW</h5><p class="small text-muted mb-4" id="resetUsernameDisplay">User</p><form action="/users/reset" method="POST"><input type="hidden" name="user_id" id="resetUserId"><input type="password" name="new_password" class="form-control bg-black text-white border-secondary mb-4" placeholder="New Password" required><div class="d-grid"><button type="submit" class="btn btn-secondary py-3 fw-bold rounded-3">UPDATE</button></div></form></div></div></div></div>
+
+    <!-- Popups -->
+    <div id="successPop">
+        <div class="pop-card">
+            <span class="check-icon">✓</span>
+            <h2 class="fw-bold text-white">SUCCESS</h2>
+            <p class="text-muted mb-0" id="successMsg">Operation Completed</p>
+        </div>
+    </div>
+    <div id="errorPop">
+        <div class="pop-card">
+            <span class="error-icon">⚠</span>
+            <h2 class="fw-bold text-white">ERROR</h2>
+            <p class="text-white opacity-50 mb-0" id="errorMsg">Something went wrong</p>
+        </div>
+    </div>
+
+    <div class="nav-bar">{% if session.role == 'owner' %}<a href="/" class="nav-btn"><span class="nav-icon">📊</span>Dash</a>{% endif %}<a href="/pos" class="nav-btn"><span class="nav-icon">🛒</span>POS</a><a href="/dinau" class="nav-btn"><span class="nav-icon">📖</span>Dinau</a><a href="/inventory" class="nav-btn active"><span class="nav-icon">📦</span>Stock</a>{% if session.role == 'owner' %}<a href="/sales-log" class="nav-btn"><span class="nav-icon">📜</span>Log</a>{% endif %}</div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showPop(type, msg) {
+            const pop = document.getElementById(type === 'success' ? 'successPop' : 'errorPop');
+            const msgEl = document.getElementById(type === 'success' ? 'successMsg' : 'errorMsg');
+            msgEl.innerText = msg;
+            pop.classList.add('show');
+            setTimeout(() => pop.classList.remove('show'), 2000);
+        }
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                showPop('{{ category }}', "{{ message }}");
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        function openQuickEdit(id, name, price, cost) { 
+            document.getElementById('editItemId').value = id; 
+            document.getElementById('editItemName').innerText = name; 
+            document.getElementById('editItemPrice').value = price; 
+            document.getElementById('editCostPrice').value = cost;
+            new bootstrap.Modal(document.getElementById('quickEditModal')).show(); 
+        } 
+        function openResetModal(id, username) { document.getElementById('resetUserId').value = id; document.getElementById('resetUsernameDisplay').innerText = "For User: " + username; new bootstrap.Modal(document.getElementById('resetPwModal')).show(); }
+        function openFullEdit(item) {
+            document.getElementById('fullEditId').value = item.id;
+            document.getElementById('fullEditName').value = item.item_name;
+            document.getElementById('fullEditCategory').value = item.category;
+            document.getElementById('fullEditQty').value = item.quantity;
+            document.getElementById('fullEditThreshold').value = item.min_threshold;
+            document.getElementById('fullEditCost').value = item.cost_price;
+            document.getElementById('fullEditPrice').value = item.unit_price;
+            document.getElementById('fullEditExpiry').value = item.expiry_date || '';
+            document.getElementById('finalDeleteBtnLink').value = '/inventory/delete/' + item.id;
+            new bootstrap.Modal(document.getElementById('fullEditModal')).show();
+        }
+
+        function confirmDelete() {
+            bootstrap.Modal.getInstance(document.getElementById('fullEditModal')).hide();
+            const form = document.getElementById('deleteForm');
+            form.action = document.getElementById('finalDeleteBtnLink').value;
+            form.method = 'GET'; // Products use GET for delete
+            new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+        }
+
+        function confirmUserDelete(url, userId) {
+            const form = document.getElementById('deleteForm');
+            form.action = url;
+            form.method = 'POST';
+            document.getElementById('deleteUserIdInput').value = userId;
+            new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+        }
+
+        async function syncStock() {
+            try {
+                const response = await fetch('/api/inventory');
+                const data = await response.json();
+                
+                let buyingPower = 0;
+                let shelfValue = 0;
+
+                data.forEach(item => {
+                    buyingPower += item.quantity * item.cost_price;
+                    shelfValue += item.quantity * item.unit_price;
+
+                    const row = document.querySelector(`.item-row[data-id="${item.id}"]`);
+                    if (row) {
+                        const countEl = row.querySelector('.stock-count');
+                        if (countEl) countEl.innerText = `${item.quantity} in stock`;
+                        
+                        const badgeContainer = row.querySelector('.badge-container');
+                        if (item.quantity <= 0) {
+                            if (!badgeContainer.querySelector('.badge-danger')) {
+                                badgeContainer.innerHTML += '<span class="badge bg-danger rounded-pill" style="font-size: 0.5rem; letter-spacing: 0.5px;">SOLD OUT</span>';
+                            }
+                        } else {
+                            const badge = badgeContainer.querySelector('.badge-danger');
+                            if (badge) badge.remove();
+                        }
+                    }
+                });
+
+                // Update Financials
+                const bpEl = document.getElementById('totalBuyingPower');
+                const svEl = document.getElementById('totalShelfValue');
+                if (bpEl) bpEl.innerText = formatKina(buyingPower);
+                if (svEl) svEl.innerText = formatKina(shelfValue);
+
+            } catch (e) {
+                console.error("Sync error:", e);
+            }
+        }
+
+        function formatKina(val) { return 'K' + parseFloat(val).toFixed(2); }
+
+        setInterval(syncStock, 5000);
+
+        function filterStock() {
+            const q = document.getElementById('stockSearch').value.toLowerCase();
+            document.querySelectorAll('#stockListContainer .item-row').forEach(row => {
+                const name = row.getAttribute('data-name');
+                const cat = row.getAttribute('data-category');
+                row.style.display = (name.includes(q) || cat.includes(q)) ? 'flex' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

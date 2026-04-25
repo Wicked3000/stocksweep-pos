@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - StockSweep</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { 
+            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.8)), url('/static/login_bg_shop.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            font-family: 'Inter', sans-serif; 
+        }
+        .login-card { 
+            background: rgba(17, 17, 17, 0.85); 
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 25px; 
+            width: 100%; 
+            max-width: 420px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); 
+        }
+        .btn-login { height: 55px; font-weight: 800; letter-spacing: 1px; transition: transform 0.2s; }
+        .btn-login:active { transform: scale(0.98); }
+        .fw-900 { font-weight: 900; }
+        .form-control:focus { background-color: #000 !important; border-color: #f91a8e !important; box-shadow: none !important; }
+    </style>
+    <style>
+        /* Splash Screen Styles */
+        #splash-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 1.5s ease, visibility 1.5s;
+        }
+        .splash-logo {
+            width: 120px;
+            animation: pulse 2s infinite ease-in-out;
+            border-radius: 20px;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+        .splash-text {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="splash-logo">
+        <div class="splash-text">
+            <h1 class="fw-900 mb-0" style="color: #ffffff; letter-spacing: 2px;">BRAENOVA</h1>
+            <p class="text-uppercase fw-bold mb-0" style="color: #f91a8e; font-size: 0.8rem; letter-spacing: 5px;">STOCKMASTER</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="login-card p-4 mx-auto shadow-lg border-opacity-10 border-white">
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="mb-3" style="height: 80px; width: auto; border-radius: 15px;">
+                <h2 class="fw-900 mb-0" style="color: #ffffff; letter-spacing: -1px;">BRAENOVA</h2>
+                <p class="text-uppercase fw-bold mb-0" style="color: #f91a8e; font-size: 0.7rem; letter-spacing: 2px;">STOCKMASTER</p>
+            </div>
+            
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="alert alert-danger py-2 border-0 bg-danger bg-opacity-10 text-danger small mb-3 rounded-3 text-center">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <form action="/login" method="POST">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold text-uppercase">Username</label>
+                    <input type="text" name="username" class="form-control form-control-lg bg-black border-secondary border-opacity-25 text-white rounded-3" placeholder="Enter username" required autofocus>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-bold text-uppercase">Password</label>
+                    <input type="password" name="password" class="form-control form-control-lg bg-black border-secondary border-opacity-25 text-white rounded-3" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-login w-100 mb-4 rounded-3 shadow" style="background: #f91a8e; border: none;">LOG IN</button>
+            </form>
+            <div class="text-center pt-2 border-top border-secondary border-opacity-10">
+                <p class="text-muted small mb-2">Need help or access?</p>
+                <a href="https://wa.me/67570000000" target="_blank" class="text-decoration-none d-flex align-items-center justify-content-center gap-2 py-2 rounded-pill bg-success bg-opacity-10 text-success fw-bold small">
+                    <span>💬</span> Support on WhatsApp
+                </a>
+            </div>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('splash-screen').classList.add('hidden');
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

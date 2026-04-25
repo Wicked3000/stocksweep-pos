@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BraeNova StockMaster</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #0c0c0c; color: #ffffff; font-family: 'Inter', system-ui, -apple-system; padding-top: 75px; padding-bottom: 90px; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; height: 65px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 1100; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo-img { height: 45px; width: auto; border-radius: 8px; border: 1px solid #333; }
+        .brand-text { color: #fff; font-weight: 900; letter-spacing: -0.5px; font-size: 1.1rem; line-height: 1.1; }
+        .brand-text span { color: #f91a8e; display: block; font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000; box-shadow: 0 -5px 25px rgba(0,0,0,0.5); height: 75px; align-items: center; }
+        .nav-btn { color: #555; text-decoration: none; text-align: center; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; flex-grow: 1; display: flex; flex-direction: column; align-items: center; }
+        .nav-btn.active { color: #f91a8e; }
+        .nav-icon { font-size: 1.7rem; display: block; line-height: 1; margin-bottom: 4px; }
+        
+        .summary-card { background: linear-gradient(160deg, #1a1a1a, #050505); border: 1px solid #2a2a2a; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .text-kina { color: #f91a8e; font-weight: 800; }
+        .text-profit { color: #00ffa3; font-weight: 800; }
+        .chart-container { background: #111; border: 1px solid #222; border-radius: 24px; padding: 20px; margin-bottom: 20px; }
+        .alert-banner { background: #ff5252; color: white; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 800; border-radius: 12px; margin-bottom: 20px; }
+        
+        .ownership-tag { text-align: center; padding: 20px 10px; opacity: 0.4; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #fff; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-img">
+            <div class="brand-text">BRAENOVA<span>STOCKMASTER</span></div>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button onclick="window.location.reload()" class="btn btn-sm btn-outline-secondary rounded-pill border-opacity-25" style="width: 40px; height: 40px; padding: 0;">🔄</button>
+            <a href="/logout" class="btn btn-sm btn-outline-danger px-3 rounded-pill fw-bold">LOGOUT</a>
+        </div>
+    </header>
+
+    <div class="container py-3">
+        <div id="alertContainer">
+            {% if total_alerts > 0 %}
+            <div class="alert-banner" id="stockAlertBanner">⚠️ {{ total_alerts }} STOCK ALERTS! Check Inventory.</div>
+            {% endif %}
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-{% if session.role == 'owner' %}8{% else %}12{% endif %}">
+                <div class="summary-card h-100">
+                    <div class="p-4 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="d-block text-muted small text-uppercase fw-bold">{% if session.role == 'owner' %}Daily Revenue{% else %}My Sales Today{% endif %}</span>
+                            <h2 class="text-kina mb-0 fw-bold">{{ summary.total_sales | kina if session.role == 'cashier' else summary.expected_cash | kina }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% if session.role == 'owner' %}
+            <div class="col-4">
+                <div class="summary-card h-100 p-4 d-flex flex-column justify-content-center border-success border-opacity-25">
+                    <span class="d-block text-muted small text-uppercase fw-bold">Net Profit</span>
+                    <h3 class="text-profit mb-0 fw-bold">{{ profit | kina }}</h3>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="summary-card mb-4 p-3 bg-black">
+            <div class="chart-title p-2 small text-muted text-uppercase fw-900">Weekly Revenue Trend</div>
+            <canvas id="dailySalesChart" style="max-height: 140px;"></canvas>
+            {% if session.role == 'owner' %}
+            <div class="mt-3 d-grid">
+                <button class="btn btn-danger py-3 fw-bold rounded-3 shadow" data-bs-toggle="modal" data-bs-target="#closeShopModal">CLOSE SHOP & GENERATE REPORT</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="row g-3 mb-5">
+            <div class="col-12 col-md-6">
+                <div class="chart-container">
+                    <small class="text-muted d-block mb-3 text-uppercase fw-900">Peak Hours (Today)</small>
+                    <canvas id="hourlySalesChart" style="max-height: 180px;"></canvas>
+                </div>
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="chart-container">
+                    <small class="text-muted d-block mb-3 text-uppercase fw-900">Category Sales Mix</small>
+                    <canvas id="categorySalesChart" style="max-height: 180px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="ownership-tag pb-5">
+            Created and Owned by<br>
+            <span style="color: #f91a8e;">BraeNova IT Solutions</span>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-bar">
+        <a href="/" class="nav-btn active"><span class="nav-icon">📊</span>Dash</a>
+        <a href="/pos" class="nav-btn"><span class="nav-icon">🛒</span>POS</a>
+        <a href="/dinau" class="nav-btn"><span class="nav-icon">📖</span>Dinau</a>
+        {% if session.role == 'owner' %}
+        <a href="/inventory" class="nav-btn"><span class="nav-icon">📦</span>Stock</a>
+        <a href="/sales-log" class="nav-btn"><span class="nav-icon">📜</span>Log</a>
+        <a href="/reports" class="nav-btn"><span class="nav-icon">📉</span>Reports</a>
+        {% endif %}
+    </div>
+
+    <div class="modal fade" id="closeShopModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-danger rounded-4 overflow-hidden">
+                <div class="modal-body p-4 text-center">
+                    <h5 class="mb-1 fw-bold text-white">Daily Reconciliation</h5>
+                    <p class="text-muted small mb-4">Finalize your sales for today</p>
+                    
+                    <div class="bg-black bg-opacity-50 p-3 rounded-4 mb-4 border border-secondary border-opacity-25">
+                        <span class="text-muted small text-uppercase fw-bold d-block mb-1">System Expected</span>
+                        <h4 class="fw-bold mb-0" style="color: #00ffa3;">{{ summary.expected_cash | kina }}</h4>
+                    </div>
+
+                    <form action="/reports/close" method="POST">
+                        <div class="mb-4">
+                            <label class="small text-muted mb-2 text-uppercase fw-bold">Actual Cash in Drawer</label>
+                            <input type="number" step="0.01" name="actual_cash" class="form-control form-control-lg text-center bg-black border-danger text-white py-3 fs-3 fw-bold" placeholder="K0.00" required>
+                        </div>
+
+                        <div class="mb-4 text-start">
+                            <label class="small text-muted mb-2 text-uppercase fw-bold">Restock Notes / Incidents</label>
+                            <textarea name="restock_notes" class="form-control bg-black text-white border-secondary small" rows="2" placeholder="e.g. Ran out of drinks, Power out for 1hr..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger py-3 fw-bold rounded-4 shadow-lg" style="letter-spacing: 1px;">CONFIRM & CLOSE SHOP</button>
+                            <button type="button" class="btn btn-outline-secondary py-3 fw-bold rounded-4 border-opacity-25 text-white opacity-75" data-bs-dismiss="modal">KEEP SHOP OPEN</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        new Chart(document.getElementById('dailySalesChart'), { type: 'line', data: { labels: [{% for d in chart_data %}'{{ d.date.strftime("%d %b") }}',{% endfor %}], datasets: [{ data: [{% for d in chart_data %}{{ d.total }},{% endfor %}], borderColor: '#f91a8e', tension: 0.4, fill: true, backgroundColor: 'rgba(249, 26, 142, 0.1)', pointRadius: 5, pointBackgroundColor: '#f91a8e' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } } } } });
+        new Chart(document.getElementById('hourlySalesChart'), { type: 'bar', data: { labels: [{% for h in hourly_data %}'{{ h.hour }}:00',{% endfor %}], datasets: [{ data: [{% for h in hourly_data %}{{ h.total }},{% endfor %}], backgroundColor: '#ffb300', borderRadius: 8 }] }, options: { plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#666' } } } } });
+        new Chart(document.getElementById('categorySalesChart'), { type: 'doughnut', data: { labels: [{% for c in cat_dist %}'{{ c.category }}',{% endfor %}], datasets: [{ data: [{% for c in cat_dist %}{{ c.total }},{% endfor %}], backgroundColor: ['#00ffa3', '#f91a8e', '#0dcaf0', '#ffb300', '#6f42c1'], borderWidth: 0 }] }, options: { plugins: { legend: { position: 'right', labels: { color: '#ccc', font: { size: 10 } } } }, cutout: '75%' } });
+        async function syncAlerts() {
+            try {
+                const response = await fetch('/api/inventory');
+                const data = await response.json();
+                
+                // Count low stock items (quantity <= min_threshold)
+                const lowStockCount = data.filter(item => item.quantity <= item.min_threshold).length;
+                
+                const container = document.getElementById('alertContainer');
+                if (lowStockCount > 0) {
+                    container.innerHTML = `<div class="alert-banner" id="stockAlertBanner">⚠️ ${lowStockCount} STOCK ALERTS! Check Inventory.</div>`;
+                } else {
+                    container.innerHTML = '';
+                }
+            } catch (e) {
+                console.error("Sync error:", e);
+            }
+        }
+        setInterval(syncAlerts, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BraeNova StockMaster</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#f91a8e">
+    <style>
+        body { background-color: #0c0c0c; color: #ffffff; font-family: 'Inter', system-ui, -apple-system; padding-top: 75px; padding-bottom: 150px; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; height: 65px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 1100; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo-img { height: 45px; width: auto; border-radius: 8px; border: 1px solid #333; }
+        .brand-text { color: #fff; font-weight: 900; letter-spacing: -0.5px; font-size: 1.1rem; line-height: 1.1; }
+        .brand-text span { color: #f91a8e; display: block; font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000; box-shadow: 0 -5px 25px rgba(0,0,0,0.5); height: 75px; align-items: center; }
+        .nav-btn { color: #555; text-decoration: none; text-align: center; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; flex-grow: 1; display: flex; flex-direction: column; align-items: center; }
+        .nav-btn.active { color: #f91a8e; }
+        .nav-icon { font-size: 1.7rem; display: block; line-height: 1; margin-bottom: 4px; }
+
+        .category-scroll { display: flex; overflow-x: auto; white-space: nowrap; padding: 10px 0; scrollbar-width: none; }
+        .cat-chip { background: #151515; color: #888; border: 1px solid #222; padding: 10px 20px; border-radius: 50px; font-size: 0.8rem; font-weight: 700; cursor: pointer; margin-right: 10px; }
+        .cat-chip.active { background: #f91a8e; color: #fff; border-color: #f91a8e; }
+
+        .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .product-card { background: #151515; border: 1px solid #222; border-radius: 20px; overflow: hidden; position: relative; transition: transform 0.2s; }
+        .product-card:active { transform: scale(0.95); }
+        .product-img { width: 100%; height: 120px; object-fit: cover; opacity: 0.8; }
+        .product-info { padding: 12px; }
+        .product-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; color: #eee; }
+        .product-price { color: #f91a8e; font-weight: 800; font-size: 1.1rem; }
+        .stock-badge { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); font-size: 0.65rem; padding: 4px 10px; border-radius: 50px; }
+
+        .cart-bar { position: fixed; bottom: 75px; left: 0; right: 0; background: rgba(249, 26, 142, 0.9); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: #fff; cursor: pointer; z-index: 1050; border-radius: 20px 20px 0 0; }
+        .cart-total { font-weight: 900; font-size: 1.5rem; }
+
+        .cart-overlay { position: fixed; bottom: 0; left: 0; right: 0; top: 0; background: rgba(0,0,0,0.8); z-index: 1200; display: none; }
+        .cart-modal { position: fixed; bottom: 0; left: 0; right: 0; background: #0c0c0c; border-radius: 30px 30px 0 0; max-height: 85%; overflow-y: auto; padding: 25px; z-index: 1201; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .cart-modal.show { transform: translateY(0); }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #222; }
+
+        .kina-symbol { color: #f91a8e; margin-right: 2px; }
+        
+        #install-prompt { position: fixed; top: 80px; left: 15px; right: 15px; background: #222; border: 1px solid #f91a8e; border-radius: 12px; padding: 15px; z-index: 2000; display: none; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-img">
+            <div class="brand-text">BRAENOVA<span>STOCKMASTER</span></div>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button onclick="window.location.reload()" class="btn btn-sm btn-outline-secondary rounded-pill border-opacity-25" style="width: 40px; height: 40px; padding: 0;">🔄</button>
+            <a href="/logout" class="btn btn-sm btn-outline-danger px-3 rounded-pill fw-bold">LOGOUT</a>
+        </div>
+    </header>
+
+    <div id="install-prompt">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="small fw-bold">Install App to Mobile?</div>
+            <button class="btn btn-sm btn-primary py-1 px-3 rounded-pill fw-bold" style="background:#f91a8e; border:none;" id="install-btn">INSTALL</button>
+        </div>
+    </div>
+
+    <div class="container py-3">
+        <input type="text" id="pSearch" class="form-control bg-dark border-secondary text-white rounded-pill mb-3" placeholder="🔍 Search products..." onkeyup="filterProducts()">
+        
+        <div class="category-scroll mb-3">
+            <div class="cat-chip active" onclick="filterCategory('All', this)">All Items</div>
+            {% for cat in categories %}<div class="cat-chip" onclick="filterCategory('{{ cat.name }}', this)">{{ cat.name }}</div>{% endfor %}
+        </div>
+
+        <div class="product-grid" id="productGrid">
+            {% for item in inventory %}
+            <div class="product-card" data-name="{{ item.item_name | lower }}" data-category="{{ item.category }}" onclick="addToCart({{ item | tojson }})">
+                <div class="stock-badge">{{ item.quantity }} left</div>
+                <img src="{{ item.image_url or 'https://placehold.co/400x300/111/f91a8e?text='+item.item_name }}" class="product-img">
+                <div class="product-info">
+                    <div class="product-name text-truncate">{{ item.item_name }}</div>
+                    <div class="product-price"><span class="kina-symbol">K</span>{{ "%.2f"|format(item.unit_price) }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="cart-bar" onclick="toggleCart()">
+        <div class="fw-bold"><span id="cartCount">0</span> ITEMS</div>
+        <div class="cart-total" id="cartTotal">K0.00</div>
+    </div>
+
+    <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+    <div class="cart-modal" id="cartModal">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0">My Cart</h4>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill" onclick="toggleCart()">CLOSE</button>
+        </div>
+        <div id="cartItemsList"></div>
+        <div class="py-4">
+            <div class="d-flex justify-content-between mb-2"><span class="text-muted">Subtotal</span><span class="fw-bold" id="modalSubtotal">K0.00</span></div>
+            <div class="d-flex justify-content-between mb-4 fs-4"><span class="fw-bold">Total</span><span class="fw-bold text-success" id="modalTotal">K0.00</span></div>
+            <div class="d-grid gap-3">
+                <button class="btn btn-success py-3 fw-bold rounded-4" onclick="checkout('cash')">PAY WITH CASH</button>
+                <button class="btn btn-info py-3 fw-bold rounded-4" onclick="promptDinau()">MARK AS DINAU</button>
+                <button class="btn btn-outline-danger btn-sm border-0 mt-2" onclick="clearCart()">Empty Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        {% if session.role == 'owner' %}<a href="/" class="nav-btn"><span class="nav-icon">📊</span>Dash</a>{% endif %}
+        <a href="/pos" class="nav-btn active"><span class="nav-icon">🛒</span>POS</a>
+        <a href="/dinau" class="nav-btn"><span class="nav-icon">📖</span>Dinau</a>
+        <a href="/inventory" class="nav-btn"><span class="nav-icon">📦</span>Stock</a>
+        {% if session.role == 'owner' %}<a href="/sales-log" class="nav-btn"><span class="nav-icon">📜</span>Log</a>{% endif %}
+    </div>
+
+    <script>
+        // PWA Installation Logic
+        let deferredPrompt;
+        const installPrompt = document.getElementById('install-prompt');
+        const installBtn = document.getElementById('install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installPrompt.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') installPrompt.style.display = 'none';
+                deferredPrompt = null;
+            }
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+
+        let cart = [];
+        function addToCart(item) {
+            if (item.quantity <= 0) return alert("Sold out!");
+            const exists = cart.find(i => i.id === item.id);
+            if (exists) {
+                if (exists.qty < item.quantity) exists.qty++;
+                else alert("Limit reached!");
+            } else {
+                cart.push({ ...item, qty: 1 });
+            }
+            updateCart();
+        }
+        function updateCart() {
+            const count = cart.reduce((a, b) => a + b.qty, 0);
+            const total = cart.reduce((a, b) => a + (b.qty * b.unit_price), 0);
+            document.getElementById('cartCount').innerText = count;
+            document.getElementById('cartTotal').innerText = 'K' + total.toFixed(2);
+            document.getElementById('modalSubtotal').innerText = 'K' + total.toFixed(2);
+            document.getElementById('modalTotal').innerText = 'K' + total.toFixed(2);
+            
+            const list = document.getElementById('cartItemsList');
+            list.innerHTML = cart.map((i, index) => `<div class="cart-item"><div><div class="fw-bold">${i.item_name}</div><small class="text-muted">K${i.unit_price.toFixed(2)} x ${i.qty}</small></div><div class="d-flex align-items-center gap-2"><button class="btn btn-sm btn-outline-secondary rounded-circle" onclick="changeQty(${index}, -1)" style="width:30px;height:30px;padding:0;">-</button><span class="fw-bold mx-1">${i.qty}</span><button class="btn btn-sm btn-outline-secondary rounded-circle" onclick="changeQty(${index}, 1)" style="width:30px;height:30px;padding:0;">+</button></div></div>`).join('');
+        }
+        function changeQty(idx, delta) {
+            cart[idx].qty += delta;
+            if (cart[idx].qty <= 0) cart.splice(idx, 1);
+            updateCart();
+        }
+        function toggleCart() {
+            const modal = document.getElementById('cartModal');
+            const overlay = document.getElementById('cartOverlay');
+            if (modal.classList.contains('show')) {
+                modal.classList.remove('show');
+                overlay.style.display = 'none';
+            } else {
+                modal.classList.add('show');
+                overlay.style.display = 'block';
+            }
+        }
+        function clearCart() { cart = []; updateCart(); toggleCart(); }
+        async function checkout(method, customer = null) {
+            if (cart.length === 0) return;
+            const data = {
+                items: cart.map(i => ({ id: i.id, qty: i.qty, total_price: i.qty * i.unit_price })),
+                payment_method: method,
+                customer_name: customer
+            };
+            const res = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert("Sale Successful!");
+                location.reload();
+            } else {
+                alert(result.message || "Checkout Failed");
+            }
+        }
+        function promptDinau() {
+            const name = prompt("Enter customer name for Dinau:");
+            if (name) checkout('dinau', name);
+        }
+        function filterProducts() {
+            const q = document.getElementById('pSearch').value.toLowerCase();
+            document.querySelectorAll('.product-card').forEach(c => {
+                c.style.display = c.getAttribute('data-name').includes(q) ? 'block' : 'none';
+            });
+        }
+        function filterCategory(cat, el) {
+            document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelectorAll('.product-card').forEach(c => {
+                c.style.display = (cat === 'All' || c.getAttribute('data-category') === cat) ? 'block' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

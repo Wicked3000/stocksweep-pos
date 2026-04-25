@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BraeNova StockMaster</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0c0c0c; color: #ffffff; font-family: 'Inter', system-ui, -apple-system; padding-top: 75px; padding-bottom: 90px; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; height: 65px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 1100; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo-img { height: 45px; width: auto; border-radius: 8px; border: 1px solid #333; }
+        .brand-text { color: #fff; font-weight: 900; letter-spacing: -0.5px; font-size: 1.1rem; line-height: 1.1; }
+        .brand-text span { color: #f91a8e; display: block; font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000; box-shadow: 0 -5px 25px rgba(0,0,0,0.5); height: 75px; align-items: center; }
+        .nav-btn { color: #555; text-decoration: none; text-align: center; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; flex-grow: 1; display: flex; flex-direction: column; align-items: center; }
+        .nav-btn.active { color: #f91a8e; }
+        .nav-icon { font-size: 1.7rem; display: block; line-height: 1; margin-bottom: 4px; }
+        .text-kina { color: #f12e8c; font-weight: 800; }
+        .debt-card { background: #151515; border: 1px solid #222; border-radius: 20px; transition: all 0.3s; }
+        .ownership-tag { text-align: center; padding: 20px 10px; opacity: 0.4; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #fff; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-img">
+            <div class="brand-text">BRAENOVA<span>STOCKMASTER</span></div>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button onclick="window.location.reload()" class="btn btn-sm btn-outline-secondary rounded-pill border-opacity-25" style="width: 40px; height: 40px; padding: 0;">🔄</button>
+            <a href="/logout" class="btn btn-sm btn-outline-danger px-3 rounded-pill fw-bold">LOGOUT</a>
+        </div>
+    </header>
+
+    <div class="container py-3">
+        <h4 class="fw-900 mb-4" style="color: #f91a8e;">Debt Ledger</h4>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 fw-bold">Active Balances</h6>
+            {% if session.role == 'owner' %}<button onclick="clearPaidHistory()" class="btn btn-sm btn-outline-warning rounded-pill px-3">Clear History</button>{% endif %}
+        </div>
+        <div class="list-group gap-2">
+            {% set unpaid_count = 0 %}{% for record in dinau if record.status == 'unpaid' %}
+            <div class="list-group-item debt-card d-flex justify-content-between align-items-center p-3 rounded-4 mb-2">
+                <div><div class="text-light fw-bold">{{ record.customer_name }}</div><small class="text-muted">Since {{ record.record_date.strftime('%d %b') }}</small></div>
+                <div class="text-end"><div class="text-kina fw-bold fs-5">{{ record.amount | kina }}</div><form action="/api/dinau/status" method="POST"><input type="hidden" name="record_id" value="{{ record.id }}"><input type="hidden" name="status" value="paid"><button type="submit" class="btn btn-sm btn-success rounded-pill px-4 mt-1 fw-bold border-0 shadow-sm">SETTLE</button></form></div>
+            </div>
+            {% set unpaid_count = 1 %}{% endfor %}
+            {% if not unpaid_count %}<div class="text-center py-5 text-muted small">No active debts found.</div>{% endif %}
+            <div id="recentlySettledContainer">
+                <hr class="border-secondary my-4"><h6 class="text-muted small text-uppercase fw-bold mb-3">Settled recently</h6>
+                {% for record in dinau if record.status == 'paid' %}<div class="list-group-item bg-black bg-opacity-25 border-dark d-flex justify-content-between align-items-center p-2 rounded-3 opacity-50 mb-2"><div><span class="text-muted small fw-bold">{{ record.customer_name }}</span></div><span class="text-muted small">Paid: {{ record.amount | kina }}</span></div>{% endfor %}
+            </div>
+        </div>
+        <div class="ownership-tag pb-5">Created and Owned by<br><span style="color: #f91a8e;">BraeNova IT Solutions</span></div>
+    </div>
+    <div class="nav-bar">{% if session.role == 'owner' %}<a href="/" class="nav-btn"><span class="nav-icon">📊</span>Dash</a>{% endif %}<a href="/pos" class="nav-btn"><span class="nav-icon">🛒</span>POS</a><a href="/dinau" class="nav-btn active"><span class="nav-icon">📖</span>Dinau</a><a href="/inventory" class="nav-btn"><span class="nav-icon">📦</span>Stock</a>{% if session.role == 'owner' %}<a href="/sales-log" class="nav-btn"><span class="nav-icon">📜</span>Log</a>{% endif %}</div>
+    <!-- Confirm Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-warning rounded-4">
+                <div class="modal-body p-4 text-center">
+                    <h5 class="fw-bold mb-3 text-warning">Clear History?</h5>
+                    <p class="small text-muted mb-4">All settled (paid) records will be permanently deleted from the logs.</p>
+                    <div class="d-grid gap-2">
+                        <button onclick="executeClearHistory()" class="btn btn-warning py-3 fw-bold rounded-3">YES, CLEAR LOGS</button>
+                        <button class="btn btn-black text-white" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        function clearPaidHistory() { confirmModal.show(); }
+        async function executeClearHistory() { 
+            confirmModal.hide();
+            const res = await fetch('/api/dinau/clear_history', { method: 'POST' }); 
+            if (res.ok) { 
+                document.getElementById('recentlySettledContainer').innerHTML = '<h6 class="text-muted small text-uppercase fw-bold mb-3">Settled recently</h6><div class="text-center py-2 text-muted small">History Cleared.</div>'; 
+            } 
+        }
+    </script>
+</body>
+</html>
